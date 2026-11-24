@@ -19,8 +19,9 @@ object ImageUtils {
         val resolver = context.contentResolver
 
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-            ?: throw AnalysisException("Не удалось открыть фото")
+        // decodeStream с inJustDecodeBounds всегда возвращает null, поэтому проверяем сам поток.
+        val boundsStream = resolver.openInputStream(uri) ?: throw AnalysisException("Не удалось открыть фото")
+        boundsStream.use { BitmapFactory.decodeStream(it, null, bounds) }
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) throw AnalysisException("Файл не похож на изображение")
 
         var sample = 1
