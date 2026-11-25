@@ -367,7 +367,7 @@ private fun AnalyzingScreen(bitmap: Bitmap) {
         }
         Spacer(Modifier.height(8.dp))
         Text(
-            "Обычно это занимает 10–40 секунд",
+            "Обычно это занимает до минуты",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

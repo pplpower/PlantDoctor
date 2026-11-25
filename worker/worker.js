@@ -45,7 +45,7 @@ const SYSTEM_PROMPT = `Ты — опытный агроном и фитопат�
 }`;
 
 // Модели пробуются по порядку: если первая недоступна или перегружена, берётся следующая.
-const DEFAULT_MODELS = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-flash-latest", "gemini-flash-lite-latest"];
+const DEFAULT_MODELS = ["gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-flash-latest", "gemini-3.5-flash"];
 const MAX_BODY_BYTES = 8 * 1024 * 1024;
 
 export default {

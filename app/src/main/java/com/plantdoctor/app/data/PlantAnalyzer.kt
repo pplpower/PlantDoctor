@@ -46,13 +46,22 @@ class PlantAnalyzer(private val apiKey: String) {
         }.toString().toByteArray(Charsets.UTF_8)
 
         var lastError = "Сервис анализа недоступен. Попробуйте позже."
-        // Два прохода по списку моделей: бесплатные модели часто бывают перегружены (503).
+        // Перебираем модели, пока не уложимся в общий лимит времени: бесплатные модели
+        // часто перегружены (503) или отвечают очень медленно, и пользователь не должен ждать вечно.
+        val deadline = System.currentTimeMillis() + TOTAL_BUDGET_MS
         for ((pass, model) in (MODELS + MODELS).withIndex()) {
-            if (pass == MODELS.size) Thread.sleep(3_000)
+            if (pass == MODELS.size) Thread.sleep(2_000)
+            val remaining = deadline - System.currentTimeMillis()
+            if (remaining < 10_000) break
             val (code, text) = try {
-                post("https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent", body)
+                post(
+                    "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent",
+                    body,
+                    remaining.coerceAtMost(PER_REQUEST_TIMEOUT_MS).toInt(),
+                )
             } catch (e: SocketTimeoutException) {
-                throw AnalysisException("Сервер долго не отвечает. Попробуйте ещё раз.", e)
+                lastError = "Сервис анализа сейчас отвечает слишком медленно. Попробуйте ещё раз чуть позже."
+                continue
             } catch (e: IOException) {
                 throw AnalysisException("Нет соединения с сервером. Проверьте интернет.", e)
             }
@@ -90,11 +99,11 @@ class PlantAnalyzer(private val apiKey: String) {
         throw AnalysisException(lastError)
     }
 
-    private fun post(url: String, body: ByteArray): Pair<Int, String> {
+    private fun post(url: String, body: ByteArray, readTimeoutMs: Int): Pair<Int, String> {
         val conn = (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 20_000
-            readTimeout = 120_000
+            readTimeout = readTimeoutMs
             doOutput = true
             setRequestProperty("Content-Type", "application/json; charset=utf-8")
             setRequestProperty("x-goog-api-key", apiKey)
@@ -112,7 +121,18 @@ class PlantAnalyzer(private val apiKey: String) {
 
     companion object {
         /** Модели пробуются по порядку: если одна недоступна или упёрлась в лимит, берётся следующая. */
-        val MODELS = listOf("gemini-3.8-flash", "gemini-3.5-flash", "gemini-flash-latest", "gemini-flash-lite-latest")
+        // Сначала быстрые lite-модели (обычно 3–5 секунд), затем более тяжёлые:
+        // на бесплатном тарифе они часто перегружены или думают больше минуты.
+        val MODELS = listOf(
+            "gemini-flash-lite-latest",
+            "gemini-3.5-flash-lite",
+            "gemini-flash-latest",
+            "gemini-3.5-flash",
+        )
+
+        /** Сколько всего ждём ответа, прежде чем показать ошибку. */
+        const val TOTAL_BUDGET_MS = 100_000L
+        const val PER_REQUEST_TIMEOUT_MS = 40_000L
 
         val SYSTEM_PROMPT = """
 Ты — опытный агроном и фитопатолог. Пользователь присылает фото растения (комнатного, садового или огородного).
