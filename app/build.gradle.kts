@@ -12,8 +12,12 @@ android {
         applicationId = "com.plantdoctor.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
+
+        // Адрес сервера анализа (Cloudflare Worker). Задаётся в gradle.properties.
+        val apiUrl = (project.findProperty("plantApiUrl") as String?).orEmpty()
+        buildConfigField("String", "PLANT_API_URL", "\"$apiUrl\"")
     }
 
     buildTypes {
@@ -33,6 +37,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     packaging {
         resources {
@@ -64,7 +69,4 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("androidx.exifinterface:exifinterface:1.3.7")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
-
-    // Официальный SDK Claude API
-    implementation("com.anthropic:anthropic-java:3.13.0")
 }

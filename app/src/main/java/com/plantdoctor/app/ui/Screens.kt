@@ -21,10 +21,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -32,17 +30,13 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Grass
-import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PriorityHigh
 import androidx.compose.material.icons.filled.Science
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Thermostat
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.Cloud
@@ -52,14 +46,12 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -84,16 +76,11 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.plantdoctor.app.Screen
 import com.plantdoctor.app.UiState
-import com.plantdoctor.app.data.ClaudeModel
 import com.plantdoctor.app.data.HistoryEntry
 import com.plantdoctor.app.data.ImageUtils
 import com.plantdoctor.app.data.PlantAnalysis
@@ -114,7 +101,6 @@ fun AppScaffold(
     onOpen: (Screen) -> Unit,
     onBack: () -> Unit,
     onAnalyze: (Screen.Preview, String) -> Unit,
-    onSaveSettings: (String, ClaudeModel) -> Unit,
     onDelete: (String) -> Unit,
     onDismissError: () -> Unit,
 ) {
@@ -130,7 +116,6 @@ fun AppScaffold(
     val screen = state.screen
     val title = when (screen) {
         Screen.Home -> "Зелёный доктор"
-        Screen.Settings -> "Настройки"
         is Screen.Preview -> "Новый анализ"
         is Screen.Analyzing -> "Анализ…"
         is Screen.Result -> screen.entry.analysis.plantName.ifBlank { "Результат" }
@@ -144,13 +129,6 @@ fun AppScaffold(
                     if (screen !is Screen.Home) {
                         IconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
-                        }
-                    }
-                },
-                actions = {
-                    if (screen is Screen.Home) {
-                        IconButton(onClick = { onOpen(Screen.Settings) }) {
-                            Icon(Icons.Filled.Settings, contentDescription = "Настройки")
                         }
                     }
                 },
@@ -168,7 +146,6 @@ fun AppScaffold(
         ) {
             when (screen) {
                 Screen.Home -> HomeScreen(state, onTakePhoto, onPickGallery, onOpen)
-                Screen.Settings -> SettingsScreen(state, onSaveSettings)
                 is Screen.Preview -> PreviewScreen(screen, onAnalyze, onBack)
                 is Screen.Analyzing -> AnalyzingScreen(screen.bitmap)
                 is Screen.Result -> ResultScreen(screen.entry, onDelete)
@@ -224,23 +201,6 @@ private fun HomeScreen(
                         Icon(Icons.Filled.PhotoLibrary, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
                         Text("Выбрать из галереи")
-                    }
-                }
-            }
-        }
-
-        if (state.apiKey.isBlank()) {
-            item {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onOpen(Screen.Settings) },
-                ) {
-                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Key, contentDescription = null)
-                        Spacer(Modifier.width(12.dp))
-                        Text("Укажите API-ключ Claude в настройках, чтобы начать анализ.")
                     }
                 }
             }
@@ -675,75 +635,5 @@ private fun BulletLine(text: String) {
     Row(Modifier.padding(vertical = 2.dp)) {
         Text("•", modifier = Modifier.width(16.dp))
         Text(text)
-    }
-}
-
-// ---------------- Настройки ----------------
-
-@Composable
-private fun SettingsScreen(state: UiState, onSave: (String, ClaudeModel) -> Unit) {
-    var key by rememberSaveable { mutableStateOf(state.apiKey) }
-    var model by rememberSaveable { mutableStateOf(state.model) }
-    var showKey by remember { mutableStateOf(false) }
-    val uri = LocalUriHandler.current
-
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .imePadding()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text("API-ключ Claude", style = MaterialTheme.typography.titleMedium)
-        OutlinedTextField(
-            value = key,
-            onValueChange = { key = it.trim() },
-            label = { Text("sk-ant-…") },
-            singleLine = true,
-            visualTransformation = if (showKey) VisualTransformation.None else PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            trailingIcon = {
-                IconButton(onClick = { showKey = !showKey }) {
-                    Icon(
-                        if (showKey) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                        contentDescription = if (showKey) "Скрыть" else "Показать",
-                    )
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Text(
-            "Ключ хранится только на этом телефоне и отправляется напрямую в Anthropic вместе с фото. " +
-                "Получить ключ можно в консоли Anthropic (нужно пополнить баланс).",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        FilledTonalButton(onClick = { uri.openUri("https://console.anthropic.com/settings/keys") }) {
-            Text("Открыть консоль Anthropic")
-        }
-
-        Text("Модель", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
-        ClaudeModel.entries.forEach { m ->
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .selectable(selected = model == m, onClick = { model = m })
-                    .padding(vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                RadioButton(selected = model == m, onClick = { model = m })
-                Column {
-                    Text(m.title)
-                    Text(m.hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        }
-
-        Spacer(Modifier.height(8.dp))
-        Button(onClick = { onSave(key, model) }, modifier = Modifier.fillMaxWidth()) {
-            Text("Сохранить")
-        }
     }
 }

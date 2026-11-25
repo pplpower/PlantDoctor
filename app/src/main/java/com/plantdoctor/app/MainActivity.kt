@@ -75,7 +75,6 @@ fun PlantApp(vm: PlantViewModel = viewModel()) {
         onOpen = vm::open,
         onBack = { vm.back() },
         onAnalyze = vm::analyze,
-        onSaveSettings = vm::saveSettings,
         onDelete = vm::deleteEntry,
         onDismissError = vm::dismissError,
     )

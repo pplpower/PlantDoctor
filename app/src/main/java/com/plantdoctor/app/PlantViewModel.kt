@@ -7,12 +7,10 @@ import android.util.Base64
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.plantdoctor.app.data.AnalysisException
-import com.plantdoctor.app.data.ClaudeModel
 import com.plantdoctor.app.data.HistoryEntry
 import com.plantdoctor.app.data.HistoryStore
 import com.plantdoctor.app.data.ImageUtils
 import com.plantdoctor.app.data.PlantAnalyzer
-import com.plantdoctor.app.data.Settings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,13 +22,10 @@ import kotlinx.coroutines.withContext
 
 class PlantViewModel(app: Application) : AndroidViewModel(app) {
 
-    private val settings = Settings(app)
     private val history = HistoryStore(app.filesDir)
     private var analysisJob: Job? = null
 
-    private val _state = MutableStateFlow(
-        UiState(apiKey = settings.apiKey, model = settings.model)
-    )
+    private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     init {
@@ -57,12 +52,6 @@ class PlantViewModel(app: Application) : AndroidViewModel(app) {
         return true
     }
 
-    fun saveSettings(apiKey: String, model: ClaudeModel) {
-        settings.apiKey = apiKey
-        settings.model = model
-        _state.update { it.copy(apiKey = settings.apiKey, model = model, screen = Screen.Home) }
-    }
-
     fun onImagePicked(uri: Uri) {
         viewModelScope.launch {
             try {
@@ -76,17 +65,12 @@ class PlantViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun analyze(preview: Screen.Preview, note: String) {
-        val key = _state.value.apiKey
-        if (key.isBlank()) {
-            _state.update { it.copy(screen = Screen.Settings, error = "Сначала укажите API-ключ Claude") }
-            return
-        }
         open(Screen.Analyzing(preview.bitmap))
         analysisJob = viewModelScope.launch {
             try {
                 val entry = withContext(Dispatchers.IO) {
                     val b64 = Base64.encodeToString(preview.jpeg, Base64.NO_WRAP)
-                    val analysis = PlantAnalyzer(key, _state.value.model).analyze(b64, note)
+                    val analysis = PlantAnalyzer(BuildConfig.PLANT_API_URL).analyze(b64, note)
                     history.save(preview.jpeg, analysis)
                 }
                 refreshHistory()
