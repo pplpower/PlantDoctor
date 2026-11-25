@@ -15,9 +15,10 @@ android {
         versionCode = 2
         versionName = "1.1"
 
-        // Адрес сервера анализа (Cloudflare Worker). Задаётся в gradle.properties.
-        val apiUrl = (project.findProperty("plantApiUrl") as String?).orEmpty()
-        buildConfigField("String", "PLANT_API_URL", "\"$apiUrl\"")
+        // Ключ Gemini подставляется при сборке: -PgeminiApiKey=... или переменная окружения GEMINI_API_KEY.
+        // В репозитории его нет: в GitHub Actions он берётся из секрета GEMINI_API_KEY.
+        val geminiKey = ((project.findProperty("geminiApiKey") as String?) ?: System.getenv("GEMINI_API_KEY")).orEmpty()
+        buildConfigField("String", "GEMINI_API_KEY", "\"$geminiKey\"")
     }
 
     buildTypes {

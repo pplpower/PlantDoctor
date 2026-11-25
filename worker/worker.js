@@ -45,7 +45,7 @@ const SYSTEM_PROMPT = `Ты — опытный агроном и фитопат�
 }`;
 
 // Модели пробуются по порядку: если первая недоступна или перегружена, берётся следующая.
-const DEFAULT_MODELS = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-flash-lite-latest"];
+const DEFAULT_MODELS = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-flash-latest", "gemini-flash-lite-latest"];
 const MAX_BODY_BYTES = 8 * 1024 * 1024;
 
 export default {
@@ -79,11 +79,11 @@ export default {
       return json({ ok: false, error: "Нет фото" }, 400);
     }
 
-    let userText = "Проанализируй растение на фото и верни JSON по схеме.";
+    // Инструкции идут в начале сообщения: с systemInstruction бесплатные модели отвечают 503.
+    let userText = SYSTEM_PROMPT + "\n\nПроанализируй растение на фото и верни JSON по схеме.";
     if (note.trim()) userText += "\n\nКомментарий владельца: " + note.trim();
 
     const payload = {
-      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
       contents: [{
         role: "user",
         parts: [
@@ -91,7 +91,7 @@ export default {
           { text: userText },
         ],
       }],
-      generationConfig: { responseMimeType: "application/json", temperature: 0.4, maxOutputTokens: 8192 },
+      generationConfig: { responseMimeType: "application/json", temperature: 0.4, maxOutputTokens: 16384 },
     };
 
     const models = (env.GEMINI_MODEL ? [env.GEMINI_MODEL] : []).concat(DEFAULT_MODELS);

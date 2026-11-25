@@ -70,7 +70,7 @@ class PlantViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 val entry = withContext(Dispatchers.IO) {
                     val b64 = Base64.encodeToString(preview.jpeg, Base64.NO_WRAP)
-                    val analysis = PlantAnalyzer(BuildConfig.PLANT_API_URL).analyze(b64, note)
+                    val analysis = PlantAnalyzer(BuildConfig.GEMINI_API_KEY).analyze(b64, note)
                     history.save(preview.jpeg, analysis)
                 }
                 refreshHistory()
