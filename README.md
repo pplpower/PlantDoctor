@@ -1,45 +1,32 @@
-# Зелёный доктор — помощник по уходу за растениями (Android)
+# Plant Doctor / Зелёный доктор (Android)
 
-Сфотографируйте растение, и приложение с помощью Claude определит:
+Take a photo of a plant and the app (Google Gemini, free tier) tells you the species, diseases and pests, the overall condition and how to care for it.
 
-- вид растения (русское и латинское название, уверенность);
-- общее состояние (оценка 0–100 и статус);
-- болезни, вредителей и ошибки ухода, с признаками, причинами и пошаговым лечением;
-- что сделать в первую очередь;
-- как ухаживать: полив, свет, температура, влажность, грунт, подкормки, обрезка.
+**Download:** https://github.com/pplpower/PlantDoctor/releases/download/latest/PlantDoctor.apk
 
-Все анализы сохраняются в истории на телефоне.
+## Features (v2.0)
 
-## Как это работает
+- Plant card with a health ring, expandable problems (severity, symptoms, cause, treatment) and care tiles.
+- Up to 3 photos per scan plus an optional note.
+- "My plants": each plant keeps a timeline of scans, watering and feeding intervals.
+- Watering and feeding reminders (notifications, WorkManager).
+- "Ask the doctor" follow-up chat about a scan.
+- Share a result, search and filter history, works offline for saved scans.
+- Export and import all data as a zip backup.
+- Material You colors, dark theme, splash screen.
+- Languages: English, Русский, Українська, Polski, 简体中文, Español, Português (Brasil), Deutsch, Français. The AI answers in the phone language.
 
-Фото уходит на небольшой сервер (Cloudflare Worker, папка `worker/`), который спрашивает бесплатный Gemini от Google.
-Пользователю ничего настраивать не нужно. Как развернуть сервер, написано в `worker/README.md`.
+## Build
 
-## Как собрать APK
+The Gemini key is injected at build time and is never stored in the repo:
+`./gradlew :app:assembleRelease -PgeminiApiKey=...` or the `GEMINI_API_KEY` environment variable.
+GitHub Actions takes it from the `GEMINI_API_KEY` secret and publishes the APK from `main` to the `latest` release.
 
-### Вариант 1. Android Studio
-1. Откройте папку проекта в Android Studio (Ladybug или новее).
-2. Дождитесь синхронизации Gradle.
-3. Build → Build App Bundle(s) / APK(s) → Build APK(s).
-   Готовый файл: `app/build/outputs/apk/debug/app-debug.apk`.
+## Code layout
 
-### Вариант 2. Командная строка
-```
-./gradlew :app:assembleRelease
-```
-APK: `app/build/outputs/apk/release/app-release.apk` (подписан отладочным ключом, ставится сразу).
-
-### Вариант 3. GitHub Actions
-Загрузите проект в репозиторий GitHub. Workflow `.github/workflows/build.yml` соберёт APK
-при каждом push; файл появится во вкладке Actions → последний запуск → Artifacts.
-
-## Устройство проекта
-
-- `data/PlantAnalyzer.kt` — запрос к серверу анализа и разбор ответа.
-- `worker/worker.js` — сервер: промпт и запрос к Gemini.
-- `data/Models.kt` — модели результата и JSON.
-- `data/ImageUtils.kt` — поворот по EXIF, уменьшение до 1568 px и сжатие JPEG.
-- `data/HistoryStore.kt` — история анализов в памяти приложения.
-- `ui/Screens.kt` — экраны на Jetpack Compose (главный, предпросмотр, анализ, результат).
-
-Анализ выполняет ИИ и может ошибаться. При серьёзных проблемах лучше показать растение специалисту.
+- `data/Gemini.kt` – requests to Gemini with model fallback and timeouts.
+- `data/Store.kt`, `data/Models.kt` – JSON storage of scans and plants.
+- `data/Backup.kt`, `data/Share.kt` – export/import and sharing.
+- `reminders/Reminders.kt` – care notifications.
+- `ui/` – Compose screens; `PlantViewModel.kt` – state and navigation.
+- `res/values-*/strings.xml` – translations.
