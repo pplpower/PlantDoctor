@@ -35,5 +35,16 @@ jobs:
         run: |
           if [ -z "$GEMINI_API_KEY" ]; then echo "Секрет GEMINI_API_KEY не задан, релиз не обновляется"; exit 0; fi
           cp app/build/outputs/apk/release/app-release.apk PlantDoctor.apk
-          gh release delete latest --yes --cleanup-tag || true
-          gh release create latest PlantDoctor.apk --title "Зелёный доктор (последняя сборка)" --notes "Сборка из коммита ${GITHUB_SHA::7}. Скачайте PlantDoctor.apk на телефон и установите." --latest
+          R="$GITHUB_REPOSITORY"
+          NOTES="Сборка из коммита ${GITHUB_SHA::7}. Скачайте PlantDoctor.apk на телефон и установите."
+          # Move the "latest" tag to this commit.
+          git tag -f latest "$GITHUB_SHA"
+          git push -f origin refs/tags/latest
+          # Remove leftover draft releases from earlier failed publishes.
+          for id in $(gh api "repos/$R/releases" --jq '.[] | select(.draft) | .id'); do gh api -X DELETE "repos/$R/releases/$id"; done
+          if gh api "repos/$R/releases/tags/latest" > /dev/null 2>&1; then
+            gh release upload latest PlantDoctor.apk --clobber
+            gh release edit latest --notes "$NOTES" --draft=false --latest
+          else
+            gh release create latest PlantDoctor.apk --verify-tag --title "Plant Doctor / Зелёный доктор" --notes "$NOTES" --latest
+          fi
