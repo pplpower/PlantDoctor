@@ -1,81 +1,44 @@
 package com.plantdoctor.app
 
-import android.net.Uri
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.FileProvider
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.plantdoctor.app.ui.AppScaffold
+import androidx.activity.viewModels
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import com.plantdoctor.app.reminders.Reminders
+import com.plantdoctor.app.ui.AppRoot
 import com.plantdoctor.app.ui.PlantTheme
-import java.io.File
 
 class MainActivity : ComponentActivity() {
+    private val vm: PlantViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        Reminders.ensureChannel(this)
+        Reminders.schedule(this)
+        if (savedInstanceState == null) handleIntent(intent)
         setContent {
             PlantTheme {
-                PlantApp()
+                AppRoot(vm)
             }
         }
     }
-}
 
-@Composable
-fun PlantApp(vm: PlantViewModel = viewModel()) {
-    val state by vm.state.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-
-    // URI файла, в который камера сохранит снимок (переживает поворот экрана).
-    var pendingPhoto by rememberSaveable { mutableStateOf<String?>(null) }
-
-    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
-        val uri = pendingPhoto
-        if (ok && uri != null) vm.onImagePicked(Uri.parse(uri))
-        pendingPhoto = null
-    }
-    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) vm.onImagePicked(uri)
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
     }
 
-    val takePhoto = {
-        val dir = File(context.cacheDir, "camera").apply { mkdirs() }
-        val file = File(dir, "photo_${System.currentTimeMillis()}.jpg")
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-        pendingPhoto = uri.toString()
-        try {
-            cameraLauncher.launch(uri)
-        } catch (e: Exception) {
-            pendingPhoto = null
-        }
-    }
-    val pickFromGallery = {
-        galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    private fun handleIntent(intent: Intent?) {
+        val plantId = intent?.getStringExtra(EXTRA_PLANT_ID) ?: return
+        vm.openPlantFromNotification(plantId)
     }
 
-    BackHandler(enabled = state.screen !is Screen.Home) { vm.back() }
-
-    AppScaffold(
-        state = state,
-        onTakePhoto = takePhoto,
-        onPickGallery = pickFromGallery,
-        onOpen = vm::open,
-        onBack = { vm.back() },
-        onAnalyze = vm::analyze,
-        onDelete = vm::deleteEntry,
-        onDismissError = vm::dismissError,
-    )
+    companion object {
+        const val EXTRA_PLANT_ID = "plant_id"
+    }
 }

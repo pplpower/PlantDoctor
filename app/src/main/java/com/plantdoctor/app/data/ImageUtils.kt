@@ -11,7 +11,7 @@ import kotlin.math.max
 
 object ImageUtils {
 
-    /** Длинная сторона, до которой уменьшаем фото перед отправкой (рекомендация Claude API). */
+    /** Longest side of the photo sent for analysis. */
     private const val MAX_SIDE = 1568
 
     /** Читает фото, поворачивает по EXIF, уменьшает и сжимает в JPEG. */
@@ -20,16 +20,16 @@ object ImageUtils {
 
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         // decodeStream с inJustDecodeBounds всегда возвращает null, поэтому проверяем сам поток.
-        val boundsStream = resolver.openInputStream(uri) ?: throw AnalysisException("Не удалось открыть фото")
+        val boundsStream = resolver.openInputStream(uri) ?: throw AppException(ErrorReason.IMAGE_OPEN)
         boundsStream.use { BitmapFactory.decodeStream(it, null, bounds) }
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) throw AnalysisException("Файл не похож на изображение")
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) throw AppException(ErrorReason.NOT_IMAGE)
 
         var sample = 1
         while (max(bounds.outWidth, bounds.outHeight) / (sample * 2) >= MAX_SIDE) sample *= 2
 
         val decoded = resolver.openInputStream(uri)?.use {
             BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample })
-        } ?: throw AnalysisException("Не удалось прочитать фото")
+        } ?: throw AppException(ErrorReason.NOT_IMAGE)
 
         val rotation = resolver.openInputStream(uri)?.use {
             when (ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {

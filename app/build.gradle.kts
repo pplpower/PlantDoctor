@@ -12,8 +12,8 @@ android {
         applicationId = "com.plantdoctor.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "2.0"
 
         // Ключ Gemini подставляется при сборке: -PgeminiApiKey=... или переменная окружения GEMINI_API_KEY.
         // В репозитории его нет: в GitHub Actions он берётся из секрета GEMINI_API_KEY.
@@ -70,4 +70,6 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("androidx.exifinterface:exifinterface:1.3.7")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation("androidx.work:work-runtime-ktx:2.10.0")
+    implementation("androidx.core:core-splashscreen:1.0.1")
 }
